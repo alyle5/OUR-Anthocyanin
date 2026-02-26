@@ -1,0 +1,117 @@
+// AUTOMATICALLY GENERATED: location from saved link.
+Map.setCenter(264.8, 34.8, 4)
+
+  // var aoi = ee.Geometry.Point([-81.1117, 35.3122]).buffer(5000);
+var aoi = ee.Geometry.Point([-81.094200, 35.304795]).buffer(2500);   //changed to a smaller AOI for faster tests
+
+function maskClouds(image) {
+  var scl = image.select('SCL');
+  var mask = scl.neq(3)      
+               .and(scl.neq(8))    
+               .and(scl.neq(9))    
+               .and(scl.neq(10))   
+               .and(scl.neq(11));  
+  return image.updateMask(mask);
+}
+
+function addBands(image) {
+  // Apply the scaling factors to S2 bands (10m resolution)
+  var green = image.select('B3').multiply(0.0001);
+  var red   = image.select('B4').multiply(0.0001);
+  var nir   = image.select('B8').multiply(0.0001);
+  
+  // Resample 20m bands to 10m resolution and apply scaling
+  var b5 = image.select('B5').resample('bilinear').reproject({
+    crs: image.select('B3').projection(),
+    scale: 10
+  }).multiply(0.0001);
+  
+  // Masks
+  var ndvi = image.normalizedDifference(['B8','B4']).rename('NDVI');
+  var shadowMask = nir.gt(0.12);    //remove shadow pixels that can have spike ARI values
+  var greenMask  = green.gt(0.02);  
+  
+  // Calculate ARI (original)
+  var ari = green.pow(-1).subtract(b5.pow(-1)).rename('ARI');
+  
+  // Calculate mari ((1 / B3) - (1 / B5)) * NIR
+  var mari = green.pow(-1)
+                  .subtract(b5.pow(-1))
+                  .multiply(nir)
+                  .rename('MARI');
+  
+  // Calculate redness: (Red - Green) / (Red + Green)
+  var ndRedness = image.normalizedDifference(['B4','B3']).rename('ND_Redness');  
+  
+  // Date band (DOY: day of year) for peak-date retrieval
+  var date = ee.Date(image.get('system:time_start'));
+  var doy = date.getRelative('day', 'year').add(1);
+  var doyBand = ee.Image.constant(doy).rename('DOY').toInt16();
+  
+  return image
+    .addBands([ari, mari, ndRedness, ndvi, doyBand])
+    .updateMask(ndvi.gte(0.4))
+    .updateMask(shadowMask)
+    .updateMask(greenMask);
+}
+
+var s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+  .filterBounds(aoi)
+  .filterDate('2023-10-25', '2023-12-10')
+  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
+  .map(maskClouds)
+  .map(addBands);
+
+print('Number of images:', s2.size());
+
+// Print acquisition dates for all images
+print('Acquisition dates:', s2.aggregate_array('system:time_start').map(function(timestamp) {
+  return ee.Date(timestamp).format('YYYY-MM-dd');
+}));
+
+// ---- Percentile ARI for peak (more robust) ----
+var ariP95 = s2.select('ARI')
+  .reduce(ee.Reducer.percentile([95]))
+  .rename('ARI_P95');
+
+// ---- Percentile MARI for peak ----
+var mariP95 = s2.select('MARI')
+  .reduce(ee.Reducer.percentile([95]))
+  .rename('MARI_P95');
+  
+// ---- Percentile redness for peak (more robust) ----
+var redP95 = s2.select('ND_Redness')
+  .reduce(ee.Reducer.percentile([95]))
+  .rename('ND_Redness_P95');
+
+// ---- Peak date outputs (per-pixel date of maximum) ----
+// Peak by ARI
+var peakByARI = s2.qualityMosaic('ARI');
+var peakDateARI = peakByARI.select('DOY')
+  .rename('peakDateARI_ms')
+  .toFloat();
+
+// Peak by MARI
+var peakByMARI = s2.qualityMosaic('MARI');
+var peakDateMARI = peakByMARI.select('DOY')
+  .rename('peakDateMARI_ms')
+  .toFloat();
+
+// Peak by ND_redness
+var peakByRed = s2.qualityMosaic('ND_Redness');
+var peakDateRed = peakByRed.select('DOY')
+  .rename('peakDateRed_ms')
+  .toFloat();
+
+var out = ee.Image.cat([
+  ariP95, mariP95, redP95,
+  peakDateARI, peakDateMARI, peakDateRed
+]).toFloat();
+
+Export.image.toDrive({
+  image: out,
+  description: 'S2_ARI_MARI_and_redness_peak_values_and_dates',
+  scale: 10,
+  region: aoi,
+  maxPixels: 1e13
+});
