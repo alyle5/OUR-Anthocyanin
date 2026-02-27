@@ -9,6 +9,8 @@ B5_mARI_ARI_S2_Pull.txt---This should be pasted into Google Earth Engine to pull
 
 ARI_mARI_Redness_distribution.ipynb---This rasterio py script from Dr.Lu classifies ARI-mARI-Redness values by NLCD classes, analyzes and outputs statistics
 
+ARI_mARI_redness_by_Slope_NLCD.ipynb-This rasterio py script, edited from Dr.Lu's script, takes slope values from an elevation slope model and classifies them into their slope profile, it then extracts ARI values from NLCD classes across these slopes, outputting statistics. 
+
 ARI_mARI_redness_by_Aspect_1_NLCD---This rasterio py script, edited from Dr.Lu's script, takes aspect values from aspect slope and classifies them into their direction, it then extracts ARI values from NLCD classes across these aspects, outputting statistics. 
 
 Raster_calc---This is a straight forward ArcPy ArcGIS script that uses the raster calculator functions to create conditonals,revealing and masking pixels based on NLCD, Aspect and ARI.
