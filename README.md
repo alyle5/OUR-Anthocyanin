@@ -16,3 +16,5 @@ ARI_mARI_redness_by_Aspect_1_NLCD---This rasterio py script, edited from Dr.Lu's
 Raster_calc---This is a straight forward ArcPy ArcGIS script that uses the raster calculator functions to create conditonals,revealing and masking pixels based on NLCD, Aspect and ARI.
 
 yao_li_autotool.py----This is the py script for Dr.Yao-Li's ArcGIS auto tool that takes raster layers and inputs them into a fishnet over the study are.
+
+anth_our.gbb.zip------This is the Geodatabase that contains all topographic variables to be accessed in ArcGIS pro
