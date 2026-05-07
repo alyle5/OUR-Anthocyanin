@@ -5,6 +5,8 @@
 
 ---------------------------------All files are date sensitive----------------------------------------------------------------
 
+ARI Final-The final version of the Google Earth Engine script that pulls Sentinel-2 imagery
+
 B5_mARI_ARI_S2_Pull.txt---This should be pasted into Google Earth Engine to pull mARI-ARI and Redness Sentinel-2 reflectance from the study area, incorporating Band 5 for band calculations
 
 ARI_mARI_Redness_distribution.ipynb---This rasterio py script from Dr.Lu classifies ARI-mARI-Redness values by NLCD classes, analyzes and outputs statistics
